@@ -2,8 +2,36 @@
 
 /* Light theme only for now; dark mode can be added once the design settles. */
 :root {
-  --background: #fafafa;
-  --foreground: #18181b;
+  --background: #f7f9fc;
+  --foreground: #172033;
+}
+
+/* Brand palette. The app's existing teal-* and zinc-* utilities map onto these, so every page picks up the
+   design system from one place: teal-700 is the primary colour, zinc-* is a cool slate neutral scale. */
+@theme {
+  --color-teal-50: #eef8f6;
+  --color-teal-100: #d4eeea;
+  --color-teal-200: #a9ddd5;
+  --color-teal-300: #73c4b8;
+  --color-teal-400: #3ca596;
+  --color-teal-500: #159383;
+  --color-teal-600: #0b8a7a;
+  --color-teal-700: #087f70;
+  --color-teal-800: #066a5e;
+  --color-teal-900: #05554c;
+  --color-teal-950: #033531;
+
+  --color-zinc-50: #f7f9fc;
+  --color-zinc-100: #eff2f7;
+  --color-zinc-200: #e5e7eb;
+  --color-zinc-300: #d3d8e0;
+  --color-zinc-400: #9aa4b2;
+  --color-zinc-500: #64748b;
+  --color-zinc-600: #4b5568;
+  --color-zinc-700: #364152;
+  --color-zinc-800: #232d3f;
+  --color-zinc-900: #172033;
+  --color-zinc-950: #0d1322;
 }
 
 @theme inline {
@@ -17,4 +45,5 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-sans), system-ui, sans-serif;
+  -webkit-tap-highlight-color: transparent;
 }

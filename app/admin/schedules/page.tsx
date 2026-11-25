@@ -4,7 +4,8 @@ import { connection } from "next/server";
 import Link from "next/link";
 import { RequireRole } from "@/components/app-shell";
 import { PageHeader } from "@/components/placeholder";
-import { Alert, EmptyState, buttonClass, inputClass } from "@/components/ui";
+import { Icon } from "@/components/icons";
+import { Alert, Badge, EmptyState, buttonClass, inputClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDayHeading, headcountState, resolveWeek, toManilaParts, weekBoundsUtc, weekRangeLabel } from "@/lib/scheduling";
 import { isUuid } from "@/lib/validation";
@@ -28,6 +29,8 @@ export default function Page({ searchParams }: PageProps<"/admin/schedules">) {
 }
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
+const iconButton =
+  "grid size-11 shrink-0 place-items-center rounded-lg border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 md:size-10";
 
 async function WeekView({ searchParams }: { searchParams: PageProps<"/admin/schedules">["searchParams"] }) {
   const raw = await searchParams;
@@ -104,70 +107,85 @@ async function WeekView({ searchParams }: { searchParams: PageProps<"/admin/sche
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-900">{weekRangeLabel(weekStart)}</h2>
-          <p className="text-xs text-zinc-500">
-            {weekStart === currentWeek ? "This week" : weekStart > currentWeek ? "A future week" : "A past week"} · Monday to Sunday, Asia/Manila
-            {selectedDepartment ? ` · ${selectedDepartment.name}` : ""}
-          </p>
-        </div>
-        <nav aria-label="Week navigation" className="flex flex-wrap gap-2">
+        <nav aria-label="Week navigation" className="flex w-full items-center gap-1 sm:w-auto">
+          <Link href={href(addDays(weekStart, -7))} aria-label="Previous week" className={iconButton}>
+            <Icon name="chevronLeft" />
+          </Link>
+          <div className="min-w-0 flex-1 px-1 text-center sm:flex-none sm:px-2 sm:text-left">
+            <h2 className="truncate text-base font-semibold text-zinc-900 md:text-lg">{weekRangeLabel(weekStart)}</h2>
+            <p className="truncate text-xs text-zinc-500">
+              {weekStart === currentWeek ? (
+                "This week"
+              ) : (
+                <>
+                  {weekStart > currentWeek ? "A future week" : "A past week"} ·{" "}
+                  <Link href={href(null)} className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                    Back to this week
+                  </Link>
+                </>
+              )}
+              <span className="hidden md:inline"> · Monday to Sunday, Asia/Manila</span>
+            </p>
+          </div>
+          <Link href={href(addDays(weekStart, 7))} aria-label="Next week" className={iconButton}>
+            <Icon name="chevronRight" />
+          </Link>
+        </nav>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
           <Link
             href={`/admin/schedules/new?date=${weekStart}${department ? `&department=${department}` : ""}`}
             className={buttonClass.primary}
           >
+            <Icon name="plus" className="size-4" />
             New shift
           </Link>
           <Link href={`/admin/schedules/auto?week=${weekStart}${department ? `&department=${department}` : ""}`} className={buttonClass.secondary}>
-            Auto-schedule preview
+            <Icon name="sparkle" className="size-4" />
+            <span className="sm:hidden">Auto-schedule</span>
+            <span className="hidden sm:inline">Auto-schedule preview</span>
           </Link>
-          <Link href={href(addDays(weekStart, -7))} className={buttonClass.secondary}>
-            ← Previous<span className="sr-only"> week</span>
-          </Link>
-          {weekStart === currentWeek ? (
-            <span aria-current="page" className={`${buttonClass.secondary} pointer-events-none opacity-50`}>
-              This week
-            </span>
-          ) : (
-            <Link href={href(null)} className={buttonClass.secondary}>
-              This week
-            </Link>
-          )}
-          <Link href={href(addDays(weekStart, 7))} className={buttonClass.secondary}>
-            Next<span className="sr-only"> week</span> →
-          </Link>
-        </nav>
+        </div>
       </div>
 
-      <form action="/admin/schedules" className="flex flex-wrap items-end gap-2">
-        <div>
-          <label htmlFor="week" className="mb-1 block text-xs font-medium text-zinc-600">
-            Go to week containing
-          </label>
-          <input id="week" name="week" type="date" defaultValue={weekStart} className={`${inputClass} w-auto`} />
-        </div>
-        <div>
-          <label htmlFor="department" className="mb-1 block text-xs font-medium text-zinc-600">
-            Department
-          </label>
-          <select id="department" name="department" defaultValue={selectedDepartment?.id ?? ""} className={`${inputClass} w-auto`}>
-            <option value="">All departments</option>
-            {(departments ?? []).map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-        </div>
-        <button type="submit" className={buttonClass.secondary}>
-          Apply
-        </button>
-        {department && (
-          <Link href={href(weekStart, "")} className="px-2 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900">
-            All departments
-          </Link>
-        )}
-      </form>
+      <details className="group rounded-xl border border-zinc-200 bg-white">
+        <summary className="flex min-h-11 cursor-pointer list-none items-center gap-2 px-4 text-sm font-medium text-zinc-700 [&::-webkit-details-marker]:hidden">
+          <Icon name="filter" className="size-4 text-zinc-500" />
+          Filter and jump to week
+          {selectedDepartment && <Badge tone="teal">{selectedDepartment.name}</Badge>}
+          <Icon name="chevronRight" className="ml-auto size-4 text-zinc-400 transition-transform group-open:rotate-90" />
+        </summary>
+        <form action="/admin/schedules" className="grid gap-3 border-t border-zinc-200 p-4 sm:flex sm:flex-wrap sm:items-end">
+          <div>
+            <label htmlFor="week" className="mb-1 block text-xs font-medium text-zinc-600">
+              Go to week containing
+            </label>
+            <input id="week" name="week" type="date" defaultValue={weekStart} className={`${inputClass} sm:w-auto`} />
+          </div>
+          <div>
+            <label htmlFor="department" className="mb-1 block text-xs font-medium text-zinc-600">
+              Department
+            </label>
+            <select id="department" name="department" defaultValue={selectedDepartment?.id ?? ""} className={`${inputClass} sm:w-auto`}>
+              <option value="">All departments</option>
+              {(departments ?? []).map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <button type="submit" className={buttonClass.primary}>
+              Apply
+            </button>
+            {department && (
+              <Link href={href(weekStart, "")} className={buttonClass.secondary}>
+                Clear
+              </Link>
+            )}
+          </div>
+        </form>
+      </details>
 
       {invalid && <Alert tone="info">That week is not a valid date, so the current week is shown.</Alert>}
 
@@ -182,15 +200,23 @@ async function WeekView({ searchParams }: { searchParams: PageProps<"/admin/sche
           )}
 
           {shifts.length ? (
-            <>
-              <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4" aria-label="Week summary">
+            // Below xl the day view comes first and the week totals after it; a week with drafts to publish keeps the
+            // publish card on top. From xl up: totals, publish card, then the seven-column grid.
+            <div className="flex flex-col gap-4">
+              <dl
+                className="order-3 grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200 sm:grid-cols-4 xl:order-none"
+                aria-label="Week summary"
+              >
                 <Stat label="Shifts" value={String(shifts.length)} note={`${count("published")} published · ${count("draft")} draft${count("cancelled") ? ` · ${count("cancelled")} cancelled` : ""}`} />
                 <Stat label="Positions filled" value={`${filled}/${required}`} note={required ? `${Math.round((filled / required) * 100)}% of required headcount` : "No required headcount"} />
                 <Stat label="Understaffed shifts" value={String(short)} note={short ? "Fewer people than required" : "Every shift is covered"} tone={short ? "amber" : "green"} />
                 <Stat label="Fully staffed" value={String(live.length - short)} note={`of ${live.length} active shifts`} />
               </dl>
               {(
-                <section aria-labelledby="week-publish" className="rounded-xl border border-zinc-200 bg-white p-4">
+                <section
+                  aria-labelledby="week-publish"
+                  className={`${weekPlan ? "order-1" : "order-4"} rounded-xl border border-zinc-200 bg-white p-4 xl:order-none`}
+                >
                   <h3 id="week-publish" className="text-sm font-semibold text-zinc-900">
                     Publish this week
                   </h3>
@@ -228,8 +254,10 @@ async function WeekView({ searchParams }: { searchParams: PageProps<"/admin/sche
                   </ActionForm>
                 </section>
               )}
-              <WeekGrid weekStart={weekStart} shifts={shifts} today={toManilaParts(now).date} />
-            </>
+              <div className="order-2 xl:order-none">
+                <WeekGrid weekStart={weekStart} shifts={shifts} today={toManilaParts(now).date} />
+              </div>
+            </div>
           ) : (
             <EmptyState
               title={department ? "No shifts for this department this week" : "No shifts this week"}
@@ -257,10 +285,10 @@ async function WeekView({ searchParams }: { searchParams: PageProps<"/admin/sche
 function Stat({ label, value, note, tone }: { label: string; value: string; note: string; tone?: "amber" | "green" }) {
   const color = tone === "amber" ? "text-amber-700" : tone === "green" ? "text-emerald-700" : "text-zinc-900";
   return (
-    <div className="rounded-xl border border-zinc-200 bg-white p-3">
+    <div className="bg-white px-3 py-2.5 md:p-3">
       <dt className="text-xs font-medium text-zinc-500">{label}</dt>
-      <dd className={`mt-1 text-xl font-semibold ${color}`}>{value}</dd>
-      <p className="mt-0.5 text-xs text-zinc-500">{note}</p>
+      <dd className={`mt-0.5 text-lg font-semibold md:text-xl ${color}`}>{value}</dd>
+      <p className="mt-0.5 text-[11px] leading-4 text-zinc-500 md:text-xs">{note}</p>
     </div>
   );
 }

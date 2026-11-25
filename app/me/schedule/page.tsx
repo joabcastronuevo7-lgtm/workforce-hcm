@@ -1,6 +1,7 @@
 import { Suspense } from "react";
 import type { Metadata } from "next";
 import Link from "next/link";
+import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/placeholder";
 import { Alert, Badge, EmptyState, buttonClass } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
@@ -22,6 +23,8 @@ export default function Page({ searchParams }: PageProps<"/me/schedule">) {
 
 const first = (v: string | string[] | undefined) => (Array.isArray(v) ? v[0] : v);
 const hoursOf = (s: { starts_at: string; ends_at: string }) => (Date.parse(s.ends_at) - Date.parse(s.starts_at)) / 3_600_000;
+const iconButton =
+  "grid size-11 shrink-0 place-items-center rounded-lg border border-zinc-300 bg-white text-zinc-700 hover:bg-zinc-50 active:bg-zinc-100 md:size-10";
 
 async function MySchedule({ searchParams }: { searchParams: PageProps<"/me/schedule">["searchParams"] }) {
   const raw = await searchParams;
@@ -55,86 +58,111 @@ async function MySchedule({ searchParams }: { searchParams: PageProps<"/me/sched
     .lt("shift.starts_at", end.toISOString());
   if (error) return <Alert tone="error">Could not load your schedule. Refresh the page to try again.</Alert>;
 
-  const shifts = data.map((a) => a.shift);
-  const days = shiftsByDay(shifts, weekStart);
+  const shifts = data.map((a) => a.shift).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
+  const days = [...shiftsByDay(shifts, weekStart)];
   const today = toManilaParts(now).date;
   const totalHours = shifts.reduce((sum, s) => sum + hoursOf(s), 0);
+  const remaining = shifts.filter((s) => Date.parse(s.ends_at) > now.getTime()).length;
 
   return (
-    <div className="space-y-4">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <h2 className="text-lg font-semibold text-zinc-900">{weekRangeLabel(weekStart)}</h2>
-          <p className="text-xs text-zinc-500">
-            {weekStart === currentWeek ? "This week" : weekStart > currentWeek ? "A future week" : "A past week"} · Monday to Sunday
+    <div className="max-w-2xl space-y-4">
+      <nav aria-label="Week navigation" className="flex items-center gap-1">
+        <Link href={href(addDays(weekStart, -7))} aria-label="Previous week" className={iconButton}>
+          <Icon name="chevronLeft" />
+        </Link>
+        <div className="min-w-0 flex-1 px-1 text-center">
+          <h2 className="truncate text-base font-semibold text-zinc-900">{weekRangeLabel(weekStart)}</h2>
+          <p className="truncate text-xs text-zinc-500">
+            {weekStart === currentWeek ? (
+              "This week"
+            ) : (
+              <>
+                {weekStart > currentWeek ? "A future week" : "A past week"} ·{" "}
+                <Link href={href(null)} className="font-medium text-teal-700 underline-offset-2 hover:underline">
+                  Back to this week
+                </Link>
+              </>
+            )}
           </p>
         </div>
-        <nav aria-label="Week navigation" className="flex flex-wrap gap-2">
-          <Link href={href(addDays(weekStart, -7))} className={buttonClass.secondary}>
-            ← Previous<span className="sr-only"> week</span>
-          </Link>
-          {weekStart === currentWeek ? (
-            <span aria-current="page" className={`${buttonClass.secondary} pointer-events-none opacity-50`}>
-              This week
-            </span>
-          ) : (
-            <Link href={href(null)} className={buttonClass.secondary}>
-              This week
-            </Link>
-          )}
-          <Link href={href(addDays(weekStart, 7))} className={buttonClass.secondary}>
-            Next<span className="sr-only"> week</span> →
-          </Link>
-        </nav>
-      </div>
+        <Link href={href(addDays(weekStart, 7))} aria-label="Next week" className={iconButton}>
+          <Icon name="chevronRight" />
+        </Link>
+      </nav>
 
       {invalid && <Alert tone="info">That week is not a valid date, so the current week is shown.</Alert>}
 
-      <dl className="grid grid-cols-2 gap-3" aria-label="Week summary">
-        <div className="rounded-xl border border-zinc-200 bg-white p-3">
-          <dt className="text-xs font-medium text-zinc-500">Shifts</dt>
-          <dd className="mt-1 text-xl font-semibold text-zinc-900">{shifts.length}</dd>
-        </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-3">
-          <dt className="text-xs font-medium text-zinc-500">Hours</dt>
-          <dd className="mt-1 text-xl font-semibold text-zinc-900">{totalHours.toFixed(1)} h</dd>
-        </div>
+      {/* Day strip: each day jumps to its row below; a dot marks a working day. */}
+      <ol aria-label="Days this week" className="grid grid-cols-7 gap-1 rounded-xl border border-zinc-200 bg-white p-1">
+        {days.map(([date, list]) => (
+          <li key={date}>
+            <a
+              href={`#day-${date}`}
+              aria-label={`${formatDayHeading(date)}${list.length ? `, ${list.length} shift(s)` : ", day off"}`}
+              className={`flex min-h-14 flex-col items-center justify-center rounded-lg text-xs ${
+                date === today ? "bg-teal-700 text-white" : "text-zinc-600 active:bg-zinc-100"
+              }`}
+            >
+              <span className={date === today ? "text-teal-100" : ""}>{formatDayHeading(date).split(" ")[0]}</span>
+              <span className="text-base leading-5 font-semibold">{Number(date.slice(8, 10))}</span>
+              <span aria-hidden className={`mt-0.5 size-1.5 rounded-full ${list.length ? (date === today ? "bg-white" : "bg-teal-600") : "bg-transparent"}`} />
+            </a>
+          </li>
+        ))}
+      </ol>
+
+      <dl className="grid grid-cols-3 gap-px overflow-hidden rounded-xl border border-zinc-200 bg-zinc-200" aria-label="Week summary">
+        {[
+          ["Shifts", String(shifts.length)],
+          ["Hours", `${totalHours.toFixed(1)} h`],
+          ["Still ahead", String(remaining)],
+        ].map(([label, value]) => (
+          <div key={label} className="bg-white px-3 py-2.5">
+            <dt className="text-xs font-medium text-zinc-500">{label}</dt>
+            <dd className="mt-0.5 text-lg font-semibold text-zinc-900">{value}</dd>
+          </div>
+        ))}
       </dl>
 
       {shifts.length ? (
         <ol className="space-y-3">
-          {[...days.entries()]
-            .filter(([, list]) => list.length)
-            .map(([date, list]) => (
-              <li key={date} className="rounded-xl border border-zinc-200 bg-white">
-                <h3 className="flex items-center justify-between gap-2 border-b border-zinc-200 px-4 py-2 text-sm font-semibold text-zinc-900">
-                  <span>{formatDayHeading(date)}</span>
-                  {date === today && <Badge tone="teal">Today</Badge>}
-                </h3>
-                <ul className="divide-y divide-zinc-100">
+          {days.map(([date, list]) => (
+            <li key={date} id={`day-${date}`} className="scroll-mt-20 md:scroll-mt-6">
+              <h3
+                className={`flex items-center gap-2 px-1 text-sm font-semibold ${list.length ? "mb-1.5 text-zinc-900" : "text-zinc-400"}`}
+              >
+                {formatDayHeading(date)}
+                {date === today && <Badge tone="teal">Today</Badge>}
+                {!list.length && <span className="ml-auto text-xs font-normal">Day off</span>}
+              </h3>
+              {list.length > 0 && (
+                <ul className="space-y-2">
                   {list.map((s) => {
-                    const state =
-                      Date.parse(s.ends_at) <= now.getTime() ? "Completed" : Date.parse(s.starts_at) <= now.getTime() ? "In progress" : "Upcoming";
+                    const done = Date.parse(s.ends_at) <= now.getTime();
+                    const live = !done && Date.parse(s.starts_at) <= now.getTime();
                     return (
-                      <li key={s.id} className="flex flex-wrap items-start justify-between gap-3 px-4 py-3">
-                        <div>
-                          <p className="text-base font-semibold text-zinc-900">{formatTimeRange(s.starts_at, s.ends_at)}</p>
-                          <p className="text-sm text-zinc-800">{s.title}</p>
-                          <p className="text-xs text-zinc-500">
-                            {s.department?.name ?? "No department"}
-                            {s.position ? ` · ${s.position.title}` : ""} · {hoursOf(s).toFixed(1)} h
-                          </p>
+                      <li
+                        key={s.id}
+                        className={`relative overflow-hidden rounded-xl border bg-white py-3 pr-4 pl-5 before:absolute before:inset-y-0 before:left-0 before:w-1 ${
+                          done ? "border-zinc-200 before:bg-zinc-300" : live ? "border-amber-300 before:bg-amber-500" : "border-zinc-200 before:bg-teal-600"
+                        }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <p className={`text-lg font-semibold ${done ? "text-zinc-400" : "text-zinc-900"}`}>{formatTimeRange(s.starts_at, s.ends_at)}</p>
+                          <Badge tone={done ? "zinc" : live ? "amber" : "teal"}>{done ? "Completed" : live ? "In progress" : "Upcoming"}</Badge>
                         </div>
-                        <div className="flex flex-wrap gap-1.5">
-                          <Badge tone="teal">Published</Badge>
-                          <Badge tone={state === "Upcoming" ? "green" : state === "In progress" ? "amber" : "zinc"}>{state}</Badge>
-                        </div>
+                        <p className={`text-sm ${done ? "text-zinc-500" : "text-zinc-800"}`}>{s.title}</p>
+                        <p className="text-xs text-zinc-500">
+                          {s.position ? `${s.position.title} · ` : ""}
+                          {s.department?.name ?? "No department"} · {hoursOf(s).toFixed(1)} h
+                        </p>
                       </li>
                     );
                   })}
                 </ul>
-              </li>
-            ))}
+              )}
+            </li>
+          ))}
         </ol>
       ) : (
         <EmptyState

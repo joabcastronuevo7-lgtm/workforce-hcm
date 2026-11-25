@@ -3,18 +3,18 @@ import type { ReactNode } from "react";
 
 // Shared presentational pieces for the admin area. No hooks: usable from Server Components.
 
+// Touch-sized on phones (44px, 16px text so iOS does not zoom on focus), denser from the md breakpoint up.
 export const inputClass =
-  "block w-full rounded-md border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-900 shadow-sm outline-none focus:border-teal-600 focus:ring-2 focus:ring-teal-600/20 disabled:bg-zinc-100 disabled:text-zinc-500 aria-invalid:border-red-400";
+  "block min-h-11 w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-base text-zinc-900 outline-none transition-colors focus:border-teal-600 focus:ring-3 focus:ring-teal-600/15 disabled:bg-zinc-100 disabled:text-zinc-500 aria-invalid:border-red-400 md:min-h-10 md:text-sm";
+
+const button =
+  "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-teal-600 disabled:cursor-not-allowed disabled:opacity-60 md:min-h-10";
 
 export const buttonClass = {
-  primary:
-    "inline-flex items-center justify-center rounded-md bg-teal-700 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-teal-800 disabled:cursor-not-allowed disabled:opacity-70",
-  secondary:
-    "inline-flex items-center justify-center rounded-md border border-zinc-300 bg-white px-3.5 py-2 text-sm font-medium text-zinc-700 shadow-sm hover:bg-zinc-50 disabled:cursor-not-allowed disabled:opacity-70",
-  danger:
-    "inline-flex items-center justify-center rounded-md bg-red-600 px-3.5 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-70",
-  dangerOutline:
-    "inline-flex items-center justify-center rounded-md border border-red-200 bg-white px-3.5 py-2 text-sm font-medium text-red-700 hover:bg-red-50 disabled:cursor-not-allowed disabled:opacity-70",
+  primary: `${button} bg-teal-700 text-white hover:bg-teal-800 active:bg-teal-900`,
+  secondary: `${button} border border-zinc-300 bg-white text-zinc-800 hover:bg-zinc-50 active:bg-zinc-100`,
+  danger: `${button} bg-red-600 text-white hover:bg-red-700 active:bg-red-800`,
+  dangerOutline: `${button} border border-red-200 bg-white text-red-700 hover:bg-red-50 active:bg-red-100`,
 };
 
 export function Field({
@@ -68,14 +68,14 @@ export function Badge({ tone = "zinc", children }: { tone?: keyof typeof tones; 
 
 export function Card({ title, action, id, children }: { title?: string; action?: ReactNode; id?: string; children: ReactNode }) {
   return (
-    <section id={id} className="scroll-mt-6 rounded-xl border border-zinc-200 bg-white">
+    <section id={id} className="scroll-mt-20 rounded-xl border border-zinc-200 bg-white shadow-xs md:scroll-mt-6">
       {title && (
-        <header className="flex items-center justify-between gap-4 border-b border-zinc-200 px-5 py-3">
+        <header className="flex items-center justify-between gap-4 border-b border-zinc-200 px-4 py-3 md:px-5">
           <h2 className="text-sm font-semibold text-zinc-900">{title}</h2>
           {action}
         </header>
       )}
-      <div className="p-5">{children}</div>
+      <div className="p-4 md:p-5">{children}</div>
     </section>
   );
 }
@@ -97,7 +97,7 @@ export function Alert({ tone, children }: { tone: "error" | "success" | "info"; 
     info: "border-zinc-200 bg-zinc-50 text-zinc-700",
   }[tone];
   return (
-    <div role={tone === "error" ? "alert" : "status"} className={`rounded-md border px-3 py-2 text-sm ${styles}`}>
+    <div role={tone === "error" ? "alert" : "status"} className={`rounded-lg border px-3 py-2.5 text-sm ${styles}`}>
       {children}
     </div>
   );
@@ -105,7 +105,7 @@ export function Alert({ tone, children }: { tone: "error" | "success" | "info"; 
 
 export function BackLink({ href, children }: { href: string; children: ReactNode }) {
   return (
-    <Link href={href} className="mb-4 inline-block text-sm font-medium text-zinc-500 hover:text-zinc-900">
+    <Link href={href} className="-ml-1 mb-3 inline-flex min-h-11 items-center px-1 text-sm font-medium text-zinc-500 hover:text-zinc-900 md:mb-4 md:min-h-0">
       ← {children}
     </Link>
   );
