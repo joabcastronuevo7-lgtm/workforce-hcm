@@ -9,6 +9,11 @@ const paths = {
   more: "M5 12h.01M12 12h.01M19 12h.01",
   send: "M21 3 10 14M21 3l-6.5 18-3.5-7-7-3.5z",
   logout: "M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15M10 17l5-5-5-5M15 12H4",
+  chevronLeft: "M15 18l-6-6 6-6",
+  chevronRight: "M9 18l6-6-6-6",
+  plus: "M12 5v14M5 12h14",
+  filter: "M4 6h16M7 12h10M10 18h4",
+  sparkle: "M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8zM19 16l.8 2.2L22 19l-2.2.8L19 22l-.8-2.2L16 19l2.2-.8z",
 } as const;
 
 export type IconName = keyof typeof paths;
