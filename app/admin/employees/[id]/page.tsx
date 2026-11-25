@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { RequireRole } from "@/components/app-shell";
-import { PageHeader } from "@/components/placeholder";
 import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/action-form";
 import { Alert, BackLink, Badge, Card, DescriptionList, buttonClass, inputClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
@@ -56,12 +55,31 @@ async function EmployeeProfile({
 
   return (
     <>
-      <div className="mb-8 flex flex-wrap items-start justify-between gap-4">
-        <PageHeader title={`${e.first_name} ${e.last_name}`} description={`${e.employee_code} · ${e.position?.title ?? "No position"}`} />
-        <Link href={`/admin/employees/${e.id}/edit`} className={buttonClass.secondary}>
-          Edit employee
-        </Link>
-      </div>
+      <header className="mb-5 flex flex-wrap items-center gap-4 md:mb-8">
+        <span aria-hidden className="grid size-14 shrink-0 place-items-center rounded-full bg-teal-50 text-lg font-semibold text-teal-800">
+          {`${e.first_name[0] ?? ""}${e.last_name[0] ?? ""}`.toUpperCase()}
+        </span>
+        <div className="min-w-0 flex-1">
+          <h1 className="text-xl font-semibold tracking-tight text-zinc-900 md:text-2xl">
+            {e.first_name} {e.last_name}
+          </h1>
+          <p className="text-sm text-zinc-500">
+            <span className="font-mono text-xs">{e.employee_code}</span> · {e.position?.title ?? "No position"}
+            {e.department ? ` · ${e.department.name}` : ""}
+          </p>
+          <div className="mt-1.5">
+            <Badge tone={STATUS_TONES[e.status]}>{STATUS_LABELS[e.status]}</Badge>
+          </div>
+        </div>
+        <div className="grid w-full grid-cols-2 gap-2 sm:flex sm:w-auto">
+          <Link href={`/admin/employees/${e.id}/edit`} className={buttonClass.primary}>
+            Edit employee
+          </Link>
+          <Link href="#account" className={buttonClass.secondary}>
+            Login account
+          </Link>
+        </div>
+      </header>
 
       {query.created && (
         <div className="mb-6">
@@ -69,8 +87,8 @@ async function EmployeeProfile({
         </div>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-        <div className="space-y-6 lg:col-span-2">
+      <div className="grid gap-4 md:gap-6 lg:grid-cols-3">
+        <div className="space-y-4 md:space-y-6 lg:col-span-2">
           <Card title="Personal information">
             <DescriptionList
               items={[
@@ -157,7 +175,7 @@ async function EmployeeProfile({
           </Card>
         </div>
 
-        <div className="space-y-6">
+        <div className="space-y-4 md:space-y-6">
           <Card title="Login account" id="account">
             <AccountPanel employeeId={e.id} email={e.email} profileId={e.profile_id} />
           </Card>
