@@ -147,14 +147,15 @@ export function ConfirmSubmit({
         ref={dialogRef}
         onClose={() => setOpen(false)}
         aria-labelledby={titleId}
-        className="m-auto w-full max-w-sm rounded-xl border border-zinc-200 p-0 shadow-xl backdrop:bg-zinc-900/40"
+        // A bottom sheet on phones (thumb reach), a centred dialog from sm up.
+        className="mx-0 mt-auto mb-0 w-full max-w-none rounded-t-2xl border border-zinc-200 p-0 shadow-xl backdrop:bg-zinc-900/40 sm:m-auto sm:max-w-sm sm:rounded-xl"
       >
-        <div className="p-5">
+        <div className="p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] sm:pb-5">
           <h2 id={titleId} className="text-base font-semibold text-zinc-900">
             {title}
           </h2>
           <p className="mt-2 text-sm text-zinc-600">{message}</p>
-          <div className="mt-5 flex justify-end gap-2">
+          <div className="mt-5 grid grid-cols-2 gap-2 sm:flex sm:justify-end">
             <button type="button" autoFocus onClick={() => setOpen(false)} className={buttonClass.secondary}>
               Cancel
             </button>

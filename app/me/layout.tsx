@@ -1,12 +1,13 @@
 import type { Metadata } from "next";
 import { AppShell } from "@/components/app-shell";
+import type { NavItem } from "@/components/nav-links";
 
 export const metadata: Metadata = { title: { template: "%s · Workforce", default: "My dashboard · Workforce" } };
 
-const nav = [
-  { href: "/me", label: "Dashboard", short: "Home" },
-  { href: "/me/schedule", label: "My schedule", short: "Schedule" },
-  { href: "/me/telegram", label: "Telegram" },
+const nav: NavItem[] = [
+  { href: "/me", label: "Dashboard", short: "Home", icon: "home" },
+  { href: "/me/schedule", label: "My schedule", short: "Schedule", icon: "calendar" },
+  { href: "/me/telegram", label: "Telegram", icon: "send" },
   // Availability, Attendance and Profile are not built yet, so they are not linked from the menu. The routes still exist.
 ];
 
