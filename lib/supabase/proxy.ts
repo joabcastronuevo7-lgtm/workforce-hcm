@@ -1,6 +1,7 @@
 import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import type { Database } from "./database.types";
+import { sessionVerdict } from "./session";
 
 const PROTECTED = /^\/(admin|me)(\/|$)/;
 
@@ -47,7 +48,17 @@ export async function updateSession(request: NextRequest) {
   if (request.headers.has("next-action")) return response;
 
   if (!signedIn && (PROTECTED.test(pathname) || pathname === "/")) return redirectTo("/login");
-  if (signedIn && pathname === "/login") return redirectTo("/");
+  if (signedIn && pathname === "/login") {
+    // getClaims only checks the token itself. Before sending someone away from the login page, ask the Auth server, so a
+    // revoked session cannot bounce between "/" and "/login".
+    const { data: current, error } = await supabase.auth.getUser();
+    const profile = current.user ? await supabase.from("profiles").select("id").eq("id", current.user.id).maybeSingle() : null;
+    const verdict = sessionVerdict({ error, hasProfile: Boolean(profile?.data) });
+    if (verdict === "home") return redirectTo("/");
+    // "local": only this browser's session; the same person's other devices stay signed in.
+    if (verdict === "clear") await supabase.auth.signOut({ scope: "local" });
+    // `response` is read last: clearing the session replaces it with one that removes the cookies.
+  }
 
   return response;
 }

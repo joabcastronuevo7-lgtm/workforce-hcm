@@ -136,3 +136,16 @@ test("results never echo names or emails", () => {
   const plan = planImport([person({ position: "Boss" })], current, org);
   assert.doesNotMatch(JSON.stringify(plan.results), /sam|lee@|example\.com/i);
 });
+
+// --- sign-in verdict ---------------------------------------------------------------------------------------------------
+test("only a definite refusal clears a session", async () => {
+  const { sessionVerdict } = await import("../lib/supabase/session.ts");
+  const verdict = (error, hasProfile = false) => sessionVerdict({ error, hasProfile });
+  assert.equal(verdict(null, true), "home");
+  assert.equal(verdict(null, false), "stay");
+  assert.equal(verdict({ name: "AuthSessionMissingError", status: 400 }), "clear");
+  assert.equal(verdict({ name: "AuthApiError", status: 403 }), "clear");
+  assert.equal(verdict({ name: "AuthApiError", status: 401 }), "clear");
+  for (const status of [0, 429, 500, 503]) assert.equal(verdict({ name: "AuthRetryableFetchError", status }), "stay", String(status));
+  assert.equal(verdict({ name: "AuthUnknownError" }), "stay");
+});
