@@ -588,6 +588,14 @@ export type Database = {
         Args: { p_employee_id: string; p_overrides?: Json; p_shift_id: string }
         Returns: string
       }
+      clock_in: {
+        Args: { p_assignment_id: string }
+        Returns: string
+      }
+      clock_out: {
+        Args: never
+        Returns: string
+      }
     }
     Enums: {
       app_role: "admin" | "employee"
