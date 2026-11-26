@@ -1,5 +1,5 @@
 -- Rolled-back test for the brief_gaps migration. Run the migration text and then this block as ONE query, before the
--- migration is applied. It ends with "raise exception", so nothing (columns, tables, fixtures) is kept.
+-- migration is applied (applied 2026-11-26 as 20261126035619). It ends with "raise exception", so nothing (columns, tables, fixtures) is kept.
 do $test$
 declare
   r jsonb := '{}';
