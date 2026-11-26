@@ -7,9 +7,10 @@ export const metadata: Metadata = { title: { template: "%s · Workforce", defaul
 const nav: NavItem[] = [
   { href: "/me", label: "Dashboard", short: "Home", icon: "home" },
   { href: "/me/schedule", label: "My schedule", short: "Schedule", icon: "calendar" },
-  { href: "/me/availability", label: "Availability", icon: "clock" },
+  { href: "/me/attendance", label: "Attendance", short: "Time", icon: "clock" },
+  { href: "/me/availability", label: "Availability", icon: "check" },
   { href: "/me/telegram", label: "Telegram", icon: "send" },
-  // Attendance and Profile are not built yet, so they are not linked from the menu. The routes still exist.
+  // Profile is not built yet, so it is not linked from the menu. The route still exists.
 ];
 
 export default function EmployeeLayout({ children }: LayoutProps<"/me">) {

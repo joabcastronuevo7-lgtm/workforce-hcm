@@ -5,7 +5,9 @@ import { Icon } from "@/components/icons";
 import { Alert, Badge, EmptyState } from "@/components/ui";
 import { requireRole } from "@/lib/auth";
 import { createClient } from "@/lib/supabase/server";
+import { clockState } from "@/lib/clock";
 import { addDays, formatDayHeading, formatTimeRange, toManilaParts, weekBoundsUtc, weekStartManila } from "@/lib/scheduling";
+import { TimeClock } from "./time-clock";
 
 export const metadata: Metadata = { title: "My dashboard" };
 
@@ -42,16 +44,22 @@ async function EmployeeDashboard() {
       />
     );
 
-  const [{ data, error }, availability, telegram] = await Promise.all([
+  const [{ data, error }, availability, telegram, attendance] = await Promise.all([
+    // from the day before this week, so an overnight shift that began on Sunday can still be clocked
     supabase
       .from("shift_assignments")
       .select("id, shift:shifts!inner(id, title, starts_at, ends_at, department:departments(name), position:positions(title))")
       .eq("employee_id", me.id)
       .eq("shift.status", "published")
-      .gte("shift.starts_at", start.toISOString())
+      .gte("shift.starts_at", weekBoundsUtc(addDays(weekStart, -1)).start.toISOString())
       .lt("shift.starts_at", weekBoundsUtc(addDays(weekStart, 63)).start.toISOString()),
     supabase.from("employee_availability").select("day_of_week, start_time, end_time").eq("employee_id", me.id).order("start_time"),
     supabase.from("employee_telegram").select("employee_id").eq("employee_id", me.id).maybeSingle(),
+    supabase
+      .from("attendance_records")
+      .select("shift_assignment_id, clock_in, clock_out")
+      .eq("employee_id", me.id)
+      .gte("work_date", addDays(weekStart, -2)),
   ]);
 
   const shifts = (data ?? []).map((a) => a.shift).sort((a, b) => Date.parse(a.starts_at) - Date.parse(b.starts_at));
@@ -59,7 +67,12 @@ async function EmployeeDashboard() {
   const next = ahead[0];
   const todays = shifts.filter((s) => toManilaParts(s.starts_at).date === today.date);
   const later = ahead.filter((s) => s !== next && toManilaParts(s.starts_at).date !== today.date);
-  const thisWeek = shifts.filter((s) => Date.parse(s.starts_at) < end.getTime());
+  const thisWeek = shifts.filter((s) => Date.parse(s.starts_at) >= start.getTime() && Date.parse(s.starts_at) < end.getTime());
+  const clock = clockState(
+    (data ?? []).map((a) => ({ assignmentId: a.id, startsAt: a.shift.starts_at, endsAt: a.shift.ends_at, title: a.shift.title })),
+    (attendance.data ?? []).map((r) => ({ assignmentId: r.shift_assignment_id, clockIn: r.clock_in, clockOut: r.clock_out })),
+    now,
+  );
   const hours = thisWeek.reduce((sum, s) => sum + (Date.parse(s.ends_at) - Date.parse(s.starts_at)) / 3_600_000, 0);
 
   const windows = availability.data ?? [];
@@ -86,6 +99,12 @@ async function EmployeeDashboard() {
         <Alert tone="error">Could not load your shifts. Refresh the page to try again.</Alert>
       ) : (
         <>
+          {attendance.error ? (
+            <Alert tone="error">Could not load your time clock. Refresh the page to try again.</Alert>
+          ) : (
+            <TimeClock state={clock} />
+          )}
+
           <section aria-labelledby="next-shift" className="overflow-hidden rounded-2xl bg-teal-700 text-white shadow-sm">
             <div className="p-5">
               <div className="flex items-center justify-between gap-2">
