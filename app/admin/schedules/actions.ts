@@ -1,5 +1,7 @@
 "use server";
 
+import { reminderText } from "@/lib/reminders";
+import { sendRemindersForTomorrow } from "@/lib/reminders-server";
 import { createHash } from "node:crypto";
 import { redirect } from "next/navigation";
 import { refresh } from "next/cache";
@@ -18,7 +20,6 @@ import {
   addDays,
   toManilaParts,
   unpublishGuard,
-  weekBoundsUtc,
   validateAssignment,
   type Assignee,
   type ShiftLike,
@@ -634,17 +635,10 @@ export async function sendTomorrowReminders(prev: ShiftActionState, formData: Fo
   const tomorrow = addDays(toManilaParts(new Date()).date, 1);
   if (formData.get("date") !== tomorrow) return { error: "The date changed since the page was loaded. Reload the page and review it again." };
 
-  const supabase = await createClient();
-  const start = weekBoundsUtc(tomorrow).start; // Manila midnight of that date
-  const end = weekBoundsUtc(addDays(tomorrow, 1)).start;
-  const { data, error } = await supabase
-    .from("shifts")
-    .select("id")
-    .eq("status", "published")
-    .gte("starts_at", start.toISOString())
-    .lt("starts_at", end.toISOString());
-  if (error) return { error: "Could not load tomorrow's shifts. No reminders were sent." };
-  if (!data.length) return { error: "There are no published shifts tomorrow, so there is nothing to send." };
+  const run = await sendRemindersForTomorrow("manual");
+  if (run.outcome === "not_set_up") return { error: "Telegram is not set up, so no reminders were sent." };
+  if (run.outcome === "failed") return { error: "The reminders could not be completed. Check the delivery history below before trying again." };
+  if (!run.shifts) return { error: "There are no published shifts tomorrow, so there is nothing to send." };
 
-  return done(prev, `Reminders for ${tomorrow}: ${reportText(await notifyShifts(supabase, "reminder", data.map((s) => s.id)))}`);
+  return done(prev, `Reminders for ${run.date}: ${reminderText(run.counts)}`);
 }

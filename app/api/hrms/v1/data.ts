@@ -23,7 +23,7 @@ export const loadEmployees: Loader = async (db, { limit, offset, status, updated
   let query = db
     .from("employees")
     .select(
-      "employee_code, external_ref, first_name, last_name, email, employment_type, status, hire_date, max_weekly_hours, updated_at, department:departments(name), position:positions(title)",
+      "employee_code, external_ref, first_name, last_name, email, employment_type, status, hire_date, location, max_weekly_hours, updated_at, department:departments(name), position:positions(title)",
     )
     .order("employee_code")
     .range(offset, offset + limit - 1);
@@ -44,6 +44,7 @@ export const loadEmployees: Loader = async (db, { limit, offset, status, updated
       employment_type: e.employment_type,
       status: e.status,
       hire_date: e.hire_date,
+      location: e.location,
       max_weekly_hours: e.max_weekly_hours,
       updated_at: e.updated_at,
     })),

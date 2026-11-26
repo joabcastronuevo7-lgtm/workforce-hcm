@@ -17,7 +17,7 @@ export async function loadAttendanceRows(
   let query = supabase
     .from("attendance_records")
     .select(
-      "status, clock_in, clock_out, work_date, employee:employees(id, employee_code, first_name, last_name), assignment:shift_assignments(shift:shifts(starts_at, ends_at, department:departments(name)))",
+      "status, clock_in, clock_out, work_date, employee:employees(id, employee_code, first_name, last_name, location, hire_date), assignment:shift_assignments(shift:shifts(starts_at, ends_at, department:departments(name)))",
     )
     .order("work_date", { ascending: false })
     .limit(ATTENDANCE_ROW_LIMIT);
@@ -44,6 +44,8 @@ export async function loadAttendanceRows(
       clockOut: r.clock_out,
       scheduledStart: shift.starts_at,
       scheduledEnd: shift.ends_at,
+      location: r.employee.location,
+      hireDate: r.employee.hire_date,
     });
   }
   return { rows, unlinked, truncated: data.length >= ATTENDANCE_ROW_LIMIT };

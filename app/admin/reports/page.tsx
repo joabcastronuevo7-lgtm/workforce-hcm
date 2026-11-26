@@ -7,6 +7,7 @@ import { Alert, Card, EmptyState, buttonClass } from "@/components/ui";
 import { attendanceRate, hoursText, percentText, summarize } from "@/lib/attendance-report";
 import { createClient } from "@/lib/supabase/server";
 import { addDays, toManilaParts } from "@/lib/scheduling";
+import { REPORT_GROUPS, isReportGroup, unitName } from "@/lib/business-units";
 import { loadAttendanceRows } from "./attendance-data";
 
 export const metadata: Metadata = { title: "Reports" };
@@ -14,7 +15,7 @@ export const metadata: Metadata = { title: "Reports" };
 export default function Page({ searchParams }: PageProps<"/admin/reports">) {
   return (
     <RequireRole role="admin">
-      <PageHeader title="Reports" description="Attendance and overtime by department, from the recorded clock-in and clock-out times." />
+      <PageHeader title="Reports" description="Attendance and overtime by business unit, from the recorded clock-in and clock-out times." />
       <Suspense fallback={<p className="text-sm text-zinc-500">Loading…</p>}>
         <AttendanceReport searchParams={searchParams} />
       </Suspense>
@@ -41,7 +42,13 @@ async function AttendanceReport({ searchParams }: { searchParams: PageProps<"/ad
   const loaded = await loadAttendanceRows(supabase, fromDate);
   if (loaded === "error") return <Alert tone="error">Could not load the attendance records. Refresh the page to try again.</Alert>;
 
-  const { departments, total, overtimeLeaders } = summarize(loaded.rows);
+  const groupParam = first(raw.group);
+  const group = isReportGroup(groupParam) ? groupParam : "department";
+  const unitLabel = REPORT_GROUPS[group];
+  // The summary groups by `department`; for the other unit types that field carries the unit name.
+  const { departments, total, overtimeLeaders } = summarize(
+    loaded.rows.map((row) => ({ ...row, department: unitName(group, { department: row.department, location: row.location ?? null, hireDate: row.hireDate ?? today }, today) })),
+  );
   const rate = attendanceRate(total);
 
   return (
@@ -53,8 +60,23 @@ async function AttendanceReport({ searchParams }: { searchParams: PageProps<"/ad
               {r.label}
             </span>
           ) : (
-            <Link key={r.key} href={`/admin/reports?range=${r.key}`} className={buttonClass.secondary}>
+            <Link key={r.key} href={`/admin/reports?range=${r.key}&group=${group}`} className={buttonClass.secondary}>
               {r.label}
+            </Link>
+          ),
+        )}
+      </nav>
+
+      <nav aria-label="Group by" className="flex flex-wrap items-center gap-2">
+        <span className="text-xs font-medium text-zinc-500">Group by</span>
+        {Object.entries(REPORT_GROUPS).map(([key, label]) =>
+          key === group ? (
+            <span key={key} aria-current="page" className={`${buttonClass.primary} pointer-events-none`}>
+              {label}
+            </span>
+          ) : (
+            <Link key={key} href={`/admin/reports?range=${range.key}&group=${key}`} className={buttonClass.secondary}>
+              {label}
             </Link>
           ),
         )}
@@ -73,12 +95,12 @@ async function AttendanceReport({ searchParams }: { searchParams: PageProps<"/ad
             <Stat label="Late arrivals" value={String(total.late)} note={total.stillOpen ? `${total.stillOpen} still clocked in` : "Everyone has clocked out"} />
           </dl>
 
-          <Card title="By department">
+          <Card title={`By ${unitLabel.toLowerCase()}`}>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm sm:min-w-[640px]">
                 <thead className="text-xs text-zinc-500">
                   <tr className="border-b border-zinc-200">
-                    <th scope="col" className="px-1 py-2 sm:px-4 font-medium">Department</th>
+                    <th scope="col" className="px-1 py-2 sm:px-4 font-medium">{unitLabel}</th>
                     <th scope="col" className="hidden sm:table-cell px-1.5 py-2 text-right sm:px-2 font-medium">Records</th>
                     <th scope="col" className="px-1.5 py-2 text-right sm:px-2 font-medium">Late</th>
                     <th scope="col" className="hidden sm:table-cell px-1.5 py-2 text-right sm:px-2 font-medium">Absent</th>
@@ -113,7 +135,7 @@ async function AttendanceReport({ searchParams }: { searchParams: PageProps<"/ad
                 <tfoot>
                   <tr className="border-t border-zinc-200 font-semibold text-zinc-900">
                     <th scope="row" className="px-1 py-2 sm:px-4">
-                      All departments
+                      All
                       <span className="block text-xs font-normal text-zinc-500 sm:hidden">
                         {total.records} records · {total.absent} absent · {total.excused} excused · {hoursText(total.workedMin)}
                       </span>
@@ -156,7 +178,7 @@ async function AttendanceReport({ searchParams }: { searchParams: PageProps<"/ad
           <li>Overtime is the time worked beyond the scheduled shift length, never below zero. It compares durations, so arriving early and leaving on time can count.</li>
           <li>The attendance data has no break records, so breaks are not deducted. Worked and scheduled time are both gross.</li>
           <li>Late, absent and excused come from each record&apos;s status. Attendance is present plus late, out of present, late and absent; excused records are left out.</li>
-          <li>Departments come from the shift each record belongs to. Periods use the Asia/Manila date.</li>
+          <li>Divisions come from the shift each record belongs to. Location and tenure come from the employee, with tenure counted to today. Periods use the Asia/Manila date.</li>
         </ul>
       </Card>
     </div>

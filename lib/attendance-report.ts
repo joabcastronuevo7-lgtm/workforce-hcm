@@ -22,6 +22,9 @@ export type AttendanceRow = {
   clockOut: string | null;
   scheduledStart: string;
   scheduledEnd: string;
+  /** For grouping by business unit. */
+  location?: string | null;
+  hireDate?: string;
 };
 
 export type AttendanceTotals = {

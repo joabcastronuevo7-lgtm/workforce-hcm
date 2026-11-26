@@ -1,8 +1,7 @@
-# HRMS API (version 1, read-only)
+# HRMS API (version 1)
 
-An HR management system can **read** employees, the organisation, published shifts and attendance from this application. It
-cannot change anything. The application currently runs on a local computer, so only programs on that computer (or one that
-can reach it) can call it. It is not published on the internet.
+An HR management system can **read** employees, the organisation, published shifts and attendance, and **import**
+employees with a separate key (see Importing employees). The read endpoints cannot change anything.
 
 ## Switching it on (owner)
 
@@ -134,3 +133,49 @@ Phone numbers, login or profile ids, roles, availability, notes, schedule overri
 anything about Telegram links.
 
 Example values above are invented.
+
+## Importing employees
+
+`POST /api/hrms/v1/employees` creates and updates employees, matched by `external_ref` (the HRMS's own id).
+
+- **Key:** `HRMS_IMPORT_KEY`, at least 32 characters, different from `HRMS_API_KEY`. Without it the import answers `503`.
+- **Preview by default.** Nothing is written unless the body says `"mode": "apply"`.
+- **All or nothing.** If any entry is rejected, nothing is written (`422`).
+- **Limits:** `application/json`, at most 100 employees and 100,000 bytes.
+- It never deletes, never changes a login, and cannot change the email of an employee who has a login.
+- Employees without an `external_ref` are never matched; an entry using their ID or email is rejected.
+- Every field is required; only `location` may be `null`.
+- Each validated request is recorded in `hrms_import_log`.
+
+```json
+{
+  "mode": "preview",
+  "employees": [
+    {
+      "external_ref": "HR-1001",
+      "employee_code": "EMP-1001",
+      "first_name": "Sam",
+      "last_name": "Sample",
+      "work_email": "sam@example.com",
+      "department": "Customer Support",
+      "position": "Support Agent",
+      "employment_type": "full_time",
+      "status": "active",
+      "hire_date": "2026-01-05",
+      "max_weekly_hours": 40,
+      "location": null
+    }
+  ]
+}
+```
+
+```powershell
+$key = Read-Host "HRMS import key"
+```
+
+```powershell
+Invoke-RestMethod -Method Post -Uri "http://localhost:3000/api/hrms/v1/employees" -Headers @{ Authorization = "Bearer $key" } -ContentType "application/json" -InFile "employees.json"
+```
+
+The answer lists each entry as `create`, `update` or `reject` with reasons, plus `applied` and an `import_id`.
+

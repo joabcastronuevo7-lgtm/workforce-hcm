@@ -14,6 +14,7 @@ export type EmployeeFormValues = {
   phone: string | null;
   department_id: string | null;
   position_id: string | null;
+  location: string | null;
   employment_type: EmploymentType;
   status: EmployeeStatus;
   hire_date: string;
@@ -144,6 +145,9 @@ export function EmployeeForm({
               </option>
             ))}
           </select>
+        </Field>
+        <Field label="Location" htmlFor="location" error={errors.location} hint="Site or city. Leave empty if not known.">
+          {input("location", { autoComplete: "off", maxLength: 60 })}
         </Field>
         <Field label="Employment type" htmlFor="employment_type" error={errors.employment_type} required>
           <select id="employment_type" name="employment_type" defaultValue={initial.employment_type} className={inputClass}>

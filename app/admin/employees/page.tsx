@@ -6,7 +6,8 @@ import { Icon } from "@/components/icons";
 import { PageHeader } from "@/components/placeholder";
 import { Alert, Badge, EmptyState, buttonClass, inputClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
-import { STATUS_LABELS, STATUS_TONES, TYPE_LABELS, formatDate, type EmployeeStatus } from "@/lib/labels";
+import { STATUS_LABELS, STATUS_TONES, TYPE_LABELS, formatDate, todayInOrg, type EmployeeStatus } from "@/lib/labels";
+import { TENURE_BANDS, isTenureBand, tenureRange } from "@/lib/business-units";
 import { isUuid, searchTerms } from "@/lib/validation";
 
 export const metadata: Metadata = { title: "Employees" };
@@ -46,6 +47,8 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
   const position = isUuid(params.position) ? params.position : "";
   const status = params.status && params.status in STATUS_LABELS ? (params.status as EmployeeStatus) : "";
   const account = params.account === "yes" || params.account === "no" ? params.account : "";
+  const location = (params.location ?? "").trim().slice(0, 60);
+  const tenure = isTenureBand(params.tenure) ? params.tenure : "";
   const sort: SortKey = params.sort && params.sort in SORTS ? (params.sort as SortKey) : "code";
   const dir = params.dir === "desc" ? "desc" : "asc";
   const page = Math.max(1, Number.parseInt(params.page ?? "1", 10) || 1);
@@ -54,7 +57,7 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
   let query = supabase
     .from("employees")
     .select(
-      "id, employee_code, first_name, last_name, email, status, employment_type, hire_date, profile_id, department:departments(name), position:positions(title)",
+      "id, employee_code, first_name, last_name, email, status, employment_type, hire_date, location, profile_id, department:departments(name), position:positions(title)",
       { count: "exact" },
     );
   for (const term of searchTerms(q)) {
@@ -65,26 +68,34 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
   if (department) query = query.eq("department_id", department);
   if (position) query = query.eq("position_id", position);
   if (status) query = query.eq("status", status);
+  if (location) query = query.eq("location", location);
+  if (tenure) {
+    const range = tenureRange(tenure, todayInOrg());
+    if (range.after) query = query.gt("hire_date", range.after);
+    if (range.upTo) query = query.lte("hire_date", range.upTo);
+  }
   if (account === "yes") query = query.not("profile_id", "is", null);
   if (account === "no") query = query.is("profile_id", null);
   query = query.order(SORTS[sort], { ascending: dir === "asc" });
   if (sort === "name") query = query.order("first_name", { ascending: dir === "asc" });
   query = query.order("id").range((page - 1) * PAGE_SIZE, page * PAGE_SIZE - 1);
 
-  const [{ data: employees, count, error }, { count: allCount }, { data: departments }, { data: positions }] = await Promise.all([
+  const [{ data: employees, count, error }, { count: allCount }, { data: departments }, { data: positions }, { data: located }] = await Promise.all([
     query,
     supabase.from("employees").select("id", { count: "exact", head: true }),
     supabase.from("departments").select("id, name").order("name"),
     supabase.from("positions").select("id, title, department:departments(name)").order("title"),
+    supabase.from("employees").select("location").not("location", "is", null).order("location"),
   ]);
 
   const total = count ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
-  const filtered = Boolean(q || department || position || status || account);
+  const filtered = Boolean(q || department || position || status || account || location || tenure);
+  const locations = [...new Set((located ?? []).map((row) => row.location!))];
 
   const href = (overrides: Params) => {
     const next = new URLSearchParams();
-    const merged = { q, department, position, status, account, sort, dir, page: String(page), ...overrides };
+    const merged = { q, department, position, status, account, location, tenure, sort, dir, page: String(page), ...overrides };
     for (const [k, v] of Object.entries(merged)) {
       if (!v || (k === "page" && v === "1") || (k === "sort" && v === "code") || (k === "dir" && v === "asc")) continue;
       next.set(k, v);
@@ -100,6 +111,8 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
     position && { key: "position", label: positions?.find((p) => p.id === position)?.title ?? "Position" },
     status && { key: "status", label: STATUS_LABELS[status] },
     account && { key: "account", label: ACCOUNT_LABELS[account] },
+    location && { key: "location", label: location },
+    tenure && { key: "tenure", label: TENURE_BANDS[tenure] },
   ].filter((c): c is { key: string; label: string } => Boolean(c));
   const sheetFilters = chips.filter((c) => c.key !== "q").length;
 
@@ -142,6 +155,10 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
         >
           <FilterSelect name="department" label="Department" all="All departments" value={department}
             options={(departments ?? []).map((d) => [d.id, d.name])} />
+          <div className="grid grid-cols-2 gap-3">
+            <FilterSelect name="location" label="Location" all="All locations" value={location} options={locations.map((l) => [l, l])} />
+            <FilterSelect name="tenure" label="Tenure" all="Any tenure" value={tenure} options={Object.entries(TENURE_BANDS)} />
+          </div>
           <FilterSelect name="position" label="Position" all="All positions" value={position}
             options={(positions ?? []).map((p) => [p.id, `${p.title} · ${p.department?.name ?? ""}`])} />
           <div className="grid grid-cols-2 gap-3">
@@ -237,7 +254,10 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
                       <span className="shrink-0 font-mono text-[11px] text-zinc-400">{e.employee_code}</span>
                     </span>
                     <span className="block truncate text-sm text-zinc-600">{e.position?.title ?? "No position"}</span>
-                    <span className="block truncate text-xs text-zinc-500">{e.department?.name ?? "No department"}</span>
+                    <span className="block truncate text-xs text-zinc-500">
+                      {e.department?.name ?? "No department"}
+                      {e.location ? ` · ${e.location}` : ""}
+                    </span>
                   </span>
                   <span className="flex shrink-0 flex-col items-end gap-1">
                     <Badge tone={STATUS_TONES[e.status]}>{STATUS_LABELS[e.status]}</Badge>
@@ -283,7 +303,10 @@ async function EmployeeDirectory({ searchParams }: { searchParams: PageProps<"/a
                     </td>
                     <td className="px-4 py-3 text-zinc-700">
                       {e.department?.name ?? <span className="text-zinc-400">No department</span>}
-                      <p className="text-xs text-zinc-500">{e.position?.title ?? "No position"}</p>
+                      <p className="text-xs text-zinc-500">
+                        {e.position?.title ?? "No position"}
+                        {e.location ? ` · ${e.location}` : ""}
+                      </p>
                     </td>
                     <td className="hidden whitespace-nowrap px-4 py-3 text-zinc-700 2xl:table-cell">{TYPE_LABELS[e.employment_type]}</td>
                     <td className="whitespace-nowrap px-4 py-3">

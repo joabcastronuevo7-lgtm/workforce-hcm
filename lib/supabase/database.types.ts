@@ -14,6 +14,86 @@ export type Database = {
   }
   public: {
     Tables: {
+      hrms_import_log: {
+        Row: {
+          created: number
+          created_at: string
+          id: string
+          mode: string
+          outcome: string
+          rejected: number
+          results: Json
+          total: number
+          updated: number
+        }
+        Insert: {
+          created?: number
+          created_at?: string
+          id?: string
+          mode: string
+          outcome: string
+          rejected?: number
+          results?: Json
+          total: number
+          updated?: number
+        }
+        Update: {
+          created?: number
+          created_at?: string
+          id?: string
+          mode?: string
+          outcome?: string
+          rejected?: number
+          results?: Json
+          total?: number
+          updated?: number
+        }
+        Relationships: []
+      }
+      reminder_deliveries: {
+        Row: {
+          attempts: number
+          created_at: string
+          employee_id: string
+          id: string
+          shift_assignment_id: string
+          shift_starts_at: string
+          source: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          attempts?: number
+          created_at?: string
+          employee_id: string
+          id?: string
+          shift_assignment_id: string
+          shift_starts_at: string
+          source: string
+          status: string
+          updated_at?: string
+        }
+        Update: {
+          attempts?: number
+          created_at?: string
+          employee_id?: string
+          id?: string
+          shift_assignment_id?: string
+          shift_starts_at?: string
+          source?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reminder_deliveries_employee_id_fkey"
+            columns: ["employee_id"]
+            isOneToOne: false
+            referencedRelation: "employees"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       attendance_records: {
         Row: {
           clock_in: string | null
@@ -206,6 +286,7 @@ export type Database = {
           id: string
           last_name: string
           max_weekly_hours: number
+          location: string | null
           phone: string | null
           position_id: string | null
           profile_id: string | null
@@ -224,6 +305,7 @@ export type Database = {
           id?: string
           last_name: string
           max_weekly_hours?: number
+          location?: string | null
           phone?: string | null
           position_id?: string | null
           profile_id?: string | null
@@ -242,6 +324,7 @@ export type Database = {
           id?: string
           last_name?: string
           max_weekly_hours?: number
+          location?: string | null
           phone?: string | null
           position_id?: string | null
           profile_id?: string | null
@@ -587,6 +670,10 @@ export type Database = {
       assign_employee: {
         Args: { p_employee_id: string; p_overrides?: Json; p_shift_id: string }
         Returns: string
+      }
+      claim_reminders: {
+        Args: { p_assignment_ids: string[]; p_source: string }
+        Returns: Database["public"]["Tables"]["reminder_deliveries"]["Row"][]
       }
       clock_in: {
         Args: { p_assignment_id: string }

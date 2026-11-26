@@ -43,6 +43,7 @@ async function NewEmployee() {
             phone: "",
             department_id: null,
             position_id: null,
+            location: null,
             employment_type: "full_time",
             status: "active",
             hire_date: todayInOrg(),

@@ -6,7 +6,8 @@ import { ActionForm, ConfirmSubmit, SubmitButton } from "@/components/action-for
 import { Alert, BackLink, Badge, Card, DescriptionList, buttonClass, inputClass } from "@/components/ui";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
-import { DAY_LABELS, STATUS_LABELS, STATUS_TONES, TYPE_LABELS, formatDate, formatDateTime } from "@/lib/labels";
+import { DAY_LABELS, STATUS_LABELS, STATUS_TONES, TYPE_LABELS, formatDate, formatDateTime, todayInOrg } from "@/lib/labels";
+import { TENURE_BANDS, tenureBand } from "@/lib/business-units";
 import { isUuid } from "@/lib/validation";
 import { createInviteLink, linkLogin, removeSkill, setAccess, setSkill } from "../actions";
 import { AvailabilityEditor } from "./availability-editor";
@@ -34,7 +35,7 @@ async function EmployeeProfile({
     supabase
       .from("employees")
       .select(
-        `id, employee_code, first_name, last_name, email, phone, employment_type, status, hire_date, max_weekly_hours, profile_id, created_at, updated_at,
+        `id, employee_code, first_name, last_name, email, phone, employment_type, status, hire_date, location, max_weekly_hours, profile_id, created_at, updated_at,
          department:departments(id, name), position:positions(id, title),
          skills:employee_skills(proficiency, skill:skills(id, name)),
          availability:employee_availability(id, day_of_week, start_time, end_time)`,
@@ -107,6 +108,8 @@ async function EmployeeProfile({
                   <Link key="d" href={`/admin/employees?department=${e.department.id}`} className="text-teal-700 hover:underline">{e.department.name}</Link>
                 ) : null],
                 ["Position", e.position?.title],
+                ["Location", e.location],
+                ["Tenure", TENURE_BANDS[tenureBand(e.hire_date, todayInOrg())]],
                 ["Employment type", TYPE_LABELS[e.employment_type]],
                 ["Status", <Badge key="s" tone={STATUS_TONES[e.status]}>{STATUS_LABELS[e.status]}</Badge>],
                 ["Hire date", formatDate(e.hire_date)],

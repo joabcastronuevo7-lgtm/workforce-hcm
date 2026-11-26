@@ -9,6 +9,7 @@ import { Alert, Badge, EmptyState, buttonClass, inputClass } from "@/components/
 import { createClient } from "@/lib/supabase/server";
 import { addDays, formatDayHeading, headcountState, resolveWeek, toManilaParts, weekBoundsUtc, weekRangeLabel } from "@/lib/scheduling";
 import { isUuid } from "@/lib/validation";
+import { formatDateTime } from "@/lib/labels";
 import { ActionForm, ConfirmSubmit } from "@/components/action-form";
 import { publishWeek, sendTomorrowReminders } from "./actions";
 import { WeekGrid, type WeekShift } from "./week-grid";
@@ -322,7 +323,7 @@ async function ReminderCard() {
           <input type="hidden" name="date" value={tomorrow} />
           <p className="text-sm text-zinc-600">
             {formatDayHeading(tomorrow)}: {data.length} published shift(s), {people.length} employee(s) assigned, {linked} linked to Telegram. All
-            departments, one message per employee.
+            departments, one message per employee. They are also sent automatically at about 18:00.
           </p>
           {people.length > 0 && (
             <ConfirmSubmit
@@ -330,12 +331,55 @@ async function ReminderCard() {
               variant="secondary"
               tone="primary"
               title="Send tomorrow's reminders?"
-              message={`${linked} of ${people.length} employee(s) will get one Telegram message about ${formatDayHeading(tomorrow)}. Sending again sends the same reminder again.`}
+              message={`${linked} of ${people.length} employee(s) will get one Telegram message about ${formatDayHeading(tomorrow)}. People already sent a reminder are skipped.`}
               confirmLabel="Send reminders"
             />
           )}
         </ActionForm>
       )}
+      <ReminderHistory />
     </section>
+  );
+}
+
+const DELIVERY: Record<string, { label: string; tone: "green" | "amber" | "red" | "zinc" }> = {
+  sent: { label: "Sent", tone: "green" },
+  not_linked: { label: "Not linked", tone: "zinc" },
+  failed: { label: "Failed", tone: "red" },
+  unknown: { label: "Delivery unknown", tone: "amber" },
+  sending: { label: "Delivery unknown", tone: "amber" },
+};
+
+// The latest reminder results. Administrators read them through their own session (RLS).
+async function ReminderHistory() {
+  const supabase = await createClient();
+  const { data, error } = await supabase
+    .from("reminder_deliveries")
+    .select("id, status, attempts, source, shift_starts_at, updated_at, employee:employees(first_name, last_name)")
+    .order("updated_at", { ascending: false })
+    .limit(10);
+  if (error) return <p className="mt-3 text-sm text-red-700">Could not load the delivery history.</p>;
+  if (!data.length) return <p className="mt-3 text-sm text-zinc-500">No reminders recorded yet.</p>;
+
+  return (
+    <details className="mt-3 border-t border-zinc-100 pt-1">
+      <summary className="flex min-h-11 cursor-pointer items-center text-sm font-medium text-teal-700">Delivery history (latest {data.length})</summary>
+      <ul className="divide-y divide-zinc-100">
+        {data.map((d) => (
+          <li key={d.id} className="flex items-center justify-between gap-3 py-2">
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium text-zinc-900">
+                {d.employee ? `${d.employee.first_name} ${d.employee.last_name}` : "Employee"}
+              </p>
+              <p className="text-xs text-zinc-500">
+                Shift {formatDateTime(d.shift_starts_at)} · {d.source}
+                {d.attempts > 1 ? ` · ${d.attempts} attempts` : ""}
+              </p>
+            </div>
+            <Badge tone={DELIVERY[d.status]?.tone ?? "zinc"}>{DELIVERY[d.status]?.label ?? d.status}</Badge>
+          </li>
+        ))}
+      </ul>
+    </details>
   );
 }

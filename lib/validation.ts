@@ -21,6 +21,7 @@ export type EmployeeInput = {
   employment_type: EmploymentType;
   status: EmployeeStatus;
   hire_date: string;
+  location: string | null;
 };
 
 export function isUuid(value: unknown): value is string {
@@ -47,6 +48,7 @@ export function parseEmployee(formData: FormData): { data?: EmployeeInput; error
   const employment_type = text("employment_type") as EmploymentType;
   const status = text("status") as EmployeeStatus;
   const hire_date = text("hire_date");
+  const location = text("location");
 
   if (!employee_code) errors.employee_code = "Enter an employee ID.";
   else if (!EMPLOYEE_CODE.test(employee_code))
@@ -63,6 +65,7 @@ export function parseEmployee(formData: FormData): { data?: EmployeeInput; error
   if (!TYPES.includes(employment_type)) errors.employment_type = "Choose an employment type.";
   if (!STATUSES.includes(status)) errors.status = "Choose a status.";
   if (!isRealDate(hire_date)) errors.hire_date = "Enter a valid hire date.";
+  if (location.length > 60) errors.location = "Keep it under 60 characters.";
 
   if (Object.keys(errors).length) return { errors };
   return {
@@ -78,6 +81,7 @@ export function parseEmployee(formData: FormData): { data?: EmployeeInput; error
       employment_type,
       status,
       hire_date,
+      location: location || null,
     },
   };
 }
