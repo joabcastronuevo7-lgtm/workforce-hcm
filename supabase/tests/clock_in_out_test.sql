@@ -1,5 +1,5 @@
 -- Rolled-back test for the clock in/out migration. Run the migration text and then this block as ONE query,
--- before the migration is applied. It ends with "raise exception", so nothing (functions, index, fixtures) is kept.
+-- before the migration is applied (applied 2026-11-26 as 20261126023608). It ends with "raise exception", so nothing (functions, index, fixtures) is kept.
 do $test$
 declare
   r jsonb := '{}';
